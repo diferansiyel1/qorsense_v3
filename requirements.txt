@@ -12,3 +12,4 @@ requests
 python-multipart
 kaleido
 httpx
+reportlab
