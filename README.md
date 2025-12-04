@@ -1,110 +1,125 @@
-# QorSense v1 - Industrial Process Sensor Monitoring
+# QorSense v1 - Advanced Industrial Sensor Monitoring
 
-QorSense v1 is a "demo-ready" predictive maintenance application designed to monitor industrial sensor data (Flow, Pressure, Temperature). It utilizes a FastAPI backend for advanced mathematical analysis and a Streamlit frontend for an interactive, professional dashboard.
+QorSense v1 is a production-ready predictive maintenance application designed to monitor industrial sensor data (Flow, Pressure, Temperature). It combines a high-performance **FastAPI** backend for advanced mathematical analysis with a modern **Next.js** frontend for a responsive, professional dashboard.
+
+![Dashboard Screenshot](frontend-next/public/window.svg)
+
+## 🚀 Key Features
+
+### 1. Real-Time Monitoring & Analysis
+- **Live Data Streaming**: Visualize sensor data in real-time with dynamic charts.
+- **Multi-Metric Analysis**: Simultaneous calculation of:
+  - **Bias & Slope**: Detect drift and offset.
+  - **SNR (Signal-to-Noise Ratio)**: Monitor signal quality.
+  - **Hysteresis**: Detect mechanical play or lag.
+  - **Hurst Exponent (DFA)**: Identify long-term memory and persistence in signal patterns.
+
+### 2. Predictive Maintenance (RUL)
+- **RUL Prediction**: Estimates **Remaining Useful Life** based on current drift trends and critical thresholds.
+- **AI Diagnosis**: Rule-based AI engine provides instant diagnosis (e.g., "Critical Trend Drift", "High Noise Level") and actionable recommendations.
+
+### 3. Data Flexibility
+- **Synthetic Data Generator**: Simulate various scenarios (Normal, Drifting, Noisy, Oscillation) for testing and demo purposes.
+- **CSV Upload**: Import and analyze your own historical sensor data files (`.csv`, `.txt`).
+
+### 4. Professional Reporting
+- **PDF Export**: Generate comprehensive PDF reports including:
+  - System Health Score (0-100)
+  - Detailed Metrics Table
+  - AI Diagnosis & Recommendations
+  - Visual Trend Charts
+
+### 5. Modern UI/UX
+- **Interactive Dashboard**: Built with Next.js, Tailwind CSS, and Recharts.
+- **Radar Charts**: Multi-dimensional visualization of sensor health metrics.
+- **Responsive Design**: Optimized for various screen sizes.
+- **Dark/Light Mode**: Adaptive visual themes.
+
+---
 
 ## 🏗 Architecture
 
-The project follows a monorepo structure:
+The project follows a modern full-stack architecture:
 
-- **backend/**: Contains the calculation engine and API.
-  - `main.py`: FastAPI application serving endpoints for analysis and synthetic data.
-  - `analysis.py`: Core logic for calculating Bias, Slope, Noise, Hysteresis, and DFA (Detrended Fluctuation Analysis).
-  - `report_gen.py`: Generates professional PDF reports with trend charts.
-  - `models.py`: Pydantic models for data validation.
-- **frontend/**: Streamlit dashboard.
-  - `app.py`: Main application file with a custom "Dark Industrial" theme.
-- **scripts**:
-  - `run_demo.sh`: One-click script to launch both backend and frontend.
-
-### System Diagram
+- **Backend (Python/FastAPI)**:
+  - `analysis.py`: Core math engine (NumPy, SciPy, Pandas).
+  - `main.py`: REST API endpoints.
+  - `report_gen.py`: PDF generation logic.
+- **Frontend (TypeScript/Next.js)**:
+  - `app/`: App Router based pages.
+  - `components/`: Reusable UI components (Sidebar, Charts, MetricCards).
+  - `lib/api.ts`: Typed API client.
 
 ```mermaid
-graph TD
-    A[Sensor Data] -->|CSV/Synthetic| B(Streamlit Frontend)
-    B -->|JSON| C{FastAPI Backend}
-    C -->|Preprocessing| D[Analysis Engine]
-    D -->|Bias/Slope/Noise| E[Health Score]
-    D -->|DFA| E
-    E -->|Result| B
-    B -->|Request| F[PDF Report Gen]
-    F -->|PDF| B
+graph LR
+    A[Sensor Data] -->|Live/CSV| B(Next.js Frontend)
+    B -->|REST API| C{FastAPI Backend}
+    C -->|Math Engine| D[Analysis]
+    D -->|RUL/Health| C
+    C -->|JSON| B
+    B -->|Request PDF| E[Report Generator]
+    E -->|PDF File| B
 ```
 
-## 🚀 Getting Started
+---
+
+## � Installation & Setup
 
 ### Prerequisites
-- Python 3.9+
-- pip
+- **Python 3.9+**
+- **Node.js 18+** & **npm**
 
-### Installation
-
-1.  Clone the repository or download the source code.
-2.  Install the required dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-    *Note: On managed Python environments (like recent macOS versions), you might need to use:*
-    ```bash
-    pip install -r requirements.txt --break-system-packages
-    ```
-
-### Running the Demo
-
-You can use the provided Makefile for convenience:
-
+### 1. Clone Repository
 ```bash
-make run
+git clone https://github.com/diferansiyel1/qorsense_v1.git
+cd qorsense_v1
 ```
 
-Or manually:
+### 2. Backend Setup
+```bash
+# Create virtual environment (optional but recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 3. Frontend Setup
+```bash
+cd frontend-next
+npm install
+cd ..
+```
+
+---
+
+## ▶️ Running the Application
+
+We provide a convenient script to launch both the backend and frontend simultaneously:
 
 ```bash
-chmod +x run_demo.sh
-./run_demo.sh
+chmod +x run_next.sh
+./run_next.sh
 ```
 
 This will:
-1.  Start the FastAPI backend on `http://localhost:8000`.
-2.  Launch the Streamlit dashboard in your default browser (usually `http://localhost:8501`).
+1. Start the **FastAPI Backend** on `http://localhost:8000`
+2. Start the **Next.js Frontend** on `http://localhost:3000`
+3. Automatically open the dashboard in your browser.
 
-### Testing
+---
 
-Run the unit tests to verify the calculation engine:
+## 🧪 Testing
+
+Run the backend unit tests to verify the analysis engine:
 
 ```bash
-make test
+# Run tests using pytest
+pytest tests/
 ```
 
-## 🖥 Features
-
-1.  **Data Sources**:
-    - **Synthetic Data Generator**: Simulate "Normal", "Drifting" (gradual failure), "Noisy" (degradation), or "Oscillation" (instability) sensor behavior.
-    - **CSV Upload**: Analyze your own time-series data. Supports automatic column detection and manual selection.
-
-2.  **Advanced Analysis**:
-    - **Health Score**: A weighted 0-100 score indicating sensor health.
-    - **Bias**: Offset from the reference baseline.
-    - **Slope**: Linear trend detection (drift).
-    - **Noise (SNR)**: Signal-to-Noise ratio and Standard Deviation.
-    - **DFA (Hurst Exponent)**: Detects long-term memory/persistence in the signal (crucial for early drift detection).
-
-3.  **Reporting**:
-    - **PDF Export**: Generate a downloadable PDF report containing all metrics, an AI-driven diagnosis, and a snapshot of the data trend.
-
-4.  **Customization**:
-    - **Window Size**: Adjust the smoothing window for analysis via the sidebar.
-
-## 🎨 Design
-
-The dashboard features a custom "Dark Industrial" aesthetic with:
-- High-contrast metric cards.
-- Interactive Plotly charts.
-- Responsive layout.
-
-## 🛠 Troubleshooting
-
-- **PDF Generation Fails**: Ensure `kaleido` is installed correctly (`pip install kaleido`). On some Linux systems, you might need additional libraries for static image generation.
-- **Connection Error**: If the frontend says "Connection Error", make sure the backend is running on port 8000. Check the terminal output for errors.
+---
 
 ## 📄 License
 
