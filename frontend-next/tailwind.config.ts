@@ -20,11 +20,11 @@ const config: Config = {
                     foreground: 'hsl(var(--popover-foreground))'
                 },
                 primary: {
-                    DEFAULT: 'hsl(var(--primary))',
-                    foreground: 'hsl(var(--primary-foreground))',
-                    start: 'var(--primary-start)',
-                    end: 'var(--primary-end)',
-                    accent: 'var(--primary-accent)',
+                    DEFAULT: '#00ADB5', // Pikolab Teal
+                    foreground: '#ffffff',
+                    start: '#00ADB5',
+                    end: '#007A80',
+                    accent: '#33BDC3', // Lighter teal
                 },
                 secondary: {
                     DEFAULT: 'hsl(var(--secondary))',
@@ -37,21 +37,21 @@ const config: Config = {
                 accent: {
                     DEFAULT: 'hsl(var(--accent))',
                     foreground: 'hsl(var(--accent-foreground))',
-                    blue: 'var(--accent-blue)',
-                    orange: 'var(--accent-orange)',
+                    blue: '#3182CE',
+                    orange: '#DD6B20',
                 },
                 destructive: {
                     DEFAULT: 'hsl(var(--destructive))',
                     foreground: 'hsl(var(--destructive-foreground))'
                 },
                 status: {
-                    green: 'var(--status-green)',
-                    yellow: 'var(--status-yellow)',
-                    red: 'var(--status-red)',
+                    green: '#00C851', // Brighter green for traffic light
+                    yellow: '#FFBB33',
+                    red: '#FF4444',
                 },
                 border: 'hsl(var(--border))',
                 input: 'hsl(var(--input))',
-                ring: 'hsl(var(--ring))',
+                ring: '#00ADB5',
                 chart: {
                     '1': 'hsl(var(--chart-1))',
                     '2': 'hsl(var(--chart-2))',
@@ -59,7 +59,7 @@ const config: Config = {
                     '4': 'hsl(var(--chart-4))',
                     '5': 'hsl(var(--chart-5))'
                 },
-                'slate-gray': '#2D3748',
+                'slate-gray': '#2D3748', // Keeping for backward compat but might replace
                 'lighter-gray': '#4A5568',
             },
             borderRadius: {
@@ -68,10 +68,13 @@ const config: Config = {
                 sm: 'calc(var(--radius) - 4px)'
             },
             fontFamily: {
-                sans: ["var(--font-geist-sans)", "Inter", "sans-serif"],
+                sans: ["var(--font-geist-sans)", "Inter", "Roboto", "sans-serif"],
                 mono: ["var(--font-geist-mono)", "monospace"],
-                display: ["Inter", "sans-serif"],
+                display: ["Inter", "Roboto", "sans-serif"],
             },
+            animation: {
+                'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            }
         }
     },
     plugins: [require("tailwindcss-animate")],
