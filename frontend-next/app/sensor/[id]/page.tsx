@@ -28,7 +28,9 @@ export default function SensorDetailPage(props: { params: Promise<{ id: string }
     // State for Real Data
     const [analysisResult, setAnalysisResult] = useState<any>(null); // Using any for speed, ideally typed
     const [loading, setLoading] = useState(true);
+    const [dataset, setDataset] = useState<number[]>([]); // Store raw data for report
     const [hasData, setHasData] = useState(false);
+    const [generatingReport, setGeneratingReport] = useState(false);
 
     // Initial Fetch
     // We will simulate fetching specific sensor data type based on ID
@@ -36,9 +38,28 @@ export default function SensorDetailPage(props: { params: Promise<{ id: string }
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Try to analyze existing data
-            const result = await api.analyzeSensor(sensorId);
+            // Retrieve settings from localStorage
+            const savedConfig = localStorage.getItem("qorsense_config");
+            const config = savedConfig ? JSON.parse(savedConfig) : undefined;
+
+            // Try to analyze existing data with optional config
+            const result = await api.analyzeSensor(sensorId, config);
             setAnalysisResult(result);
+
+            // For reporting, we ideally need the raw dataset. 
+            // If the API returns it in result (it should for charts), we use that.
+            // Based on checking the file earlier, result.metrics.hysteresis_x seems to be used as raw data proxy in charts?
+            // Actually, let's see api.ts: payload has values: []. 
+            // If backend analysis returns the data used, we can store it.
+            // Let's assume result includes the data or we can assume it's available.
+            // For now, if result has 'data' or similar we use it, otherwise empty array which might fail report generation if backend needs it.
+            // Checking charts implementation: analysisResult.metrics.hysteresis_x seems to be time/index, and hysteresis_y is value? 
+            // In the Tab "signal", it maps hysteresis_x as time and hysterical_x (wait, code said: data={analysisResult ? analysisResult.metrics.hysteresis_x.map((val: any, i: number) => ({ time: i, raw: val })) : []})
+            // So 'hysteresis_x' holds the raw values in that chart? That seems odd naming but consistent with existing code.
+            if (result && result.metrics && result.metrics.hysteresis_x) {
+                setDataset(result.metrics.hysteresis_x);
+            }
+
             setHasData(true);
         } catch (error: any) {
             if (error?.response?.status !== 404) {
@@ -60,6 +81,37 @@ export default function SensorDetailPage(props: { params: Promise<{ id: string }
     const handleUploadSuccess = () => {
         // Data uploaded, now we can analyze
         fetchData();
+    };
+
+    const handleDownloadReport = async () => {
+        if (!analysisResult) return;
+        setGeneratingReport(true);
+        try {
+            // Generate report blob
+            const blob = await api.generateReport(analysisResult, dataset);
+
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Analysis_Report_${sensorId}_${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            // Notify user (using alert for now as toast isn't fully set up in this context)
+            // toast({ title: "Report Ready", description: "PDF has been downloaded." }) 
+            // Using a temporary UI feedback instead of blocking alert if possible, but alert is consistent with existing modal style
+            window.alert("Report Downloaded Successfully!");
+            setIsReportModalOpen(false);
+
+        } catch (error) {
+            console.error("Report generation failed:", error);
+            window.alert("Failed to generate report.");
+        } finally {
+            setGeneratingReport(false);
+        }
     };
 
     // Mock Sensor Info based on ID
@@ -353,8 +405,21 @@ export default function SensorDetailPage(props: { params: Promise<{ id: string }
                                 </p>
 
                                 <div className="flex gap-3 mt-6">
-                                    <Button className="w-full bg-primary hover:bg-primary-end" onClick={() => setIsReportModalOpen(false)}>Create Work Order</Button>
-                                    <Button variant="outline" className="w-full" onClick={() => setIsReportModalOpen(false)}>Cancel</Button>
+                                    <Button
+                                        className="w-full bg-primary hover:bg-primary-end"
+                                        onClick={handleDownloadReport}
+                                        disabled={generatingReport}
+                                    >
+                                        {generatingReport ? (
+                                            <>
+                                                <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
+                                                Generating PDF...
+                                            </>
+                                        ) : (
+                                            "Download Official Report (PDF)"
+                                        )}
+                                    </Button>
+                                    <Button variant="outline" className="w-full" onClick={() => setIsReportModalOpen(false)} disabled={generatingReport}>Cancel</Button>
                                 </div>
                             </div>
                         </div>

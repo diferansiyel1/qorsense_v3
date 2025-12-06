@@ -49,7 +49,7 @@ export const api = {
         return res.data;
     },
 
-    analyzeSensor: async (sensorId: string): Promise<AnalysisResult> => {
+    analyzeSensor: async (sensorId: string, config?: any): Promise<AnalysisResult> => {
         // We need to construct a SensorDataInput with just ID for the new flow
         // The backend expects specific payload for analyze, or we can use the new logic if implemented
         // But based on backend/main.py 'analyze_sensor' it accepts SensorDataInput which has sensor_id
@@ -57,7 +57,8 @@ export const api = {
         const payload = {
             sensor_id: sensorId,
             sensor_type: "Bio", // Default or derived
-            values: [] // Empty values triggers DB fetch in backend
+            values: [], // Empty values triggers DB fetch in backend
+            config: config // Optional configuration from settings
         };
         const res = await axios.post<AnalysisResult>(`${API_URL}/analyze`, payload);
         return res.data;
