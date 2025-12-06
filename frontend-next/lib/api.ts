@@ -7,10 +7,11 @@ export interface Sensor {
     id: string;
     name: string;
     location: string;
-    source_type: 'CSV' | 'SCADA';
+    source_type: 'CSV' | 'SCADA' | 'IoT';
     organization_id?: number;
-    health_score?: number;
-    status?: 'Normal' | 'Warning' | 'Critical' | 'Unknown';
+    latest_health_score?: number;
+    latest_status?: 'Normal' | 'Warning' | 'Critical' | 'Unknown';
+    latest_analysis_timestamp?: string;
 }
 
 export interface CreateSensorData {

@@ -146,8 +146,9 @@ async def get_sensors(db: AsyncSession = Depends(get_db)):
             location=s.location,
             source_type=s.source_type,
             organization_id=s.org_id,
-            health_score=latest_analysis.health_score if latest_analysis else 0.0,
-            status=latest_analysis.status if latest_analysis else "Unknown"
+            latest_health_score=latest_analysis.health_score if latest_analysis else 100.0,
+            latest_status=latest_analysis.status if latest_analysis else "Normal",
+            latest_analysis_timestamp=latest_analysis.timestamp if latest_analysis else None
         )
         sensor_responses.append(response)
         

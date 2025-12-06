@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional
+from datetime import datetime
 
 class SensorConfig(BaseModel):
     slope_critical: float = 0.1
@@ -23,8 +24,9 @@ class SensorResponse(BaseModel):
     location: str
     source_type: str
     organization_id: Optional[int] = None
-    health_score: Optional[float] = 0.0
-    status: Optional[str] = "Unknown"
+    latest_health_score: Optional[float] = 100.0
+    latest_status: Optional[str] = "Normal"
+    latest_analysis_timestamp: Optional[datetime] = None
 
     class Config:
         from_attributes = True

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, PieChart, FileText, Settings, Box } from "lucide-react";
+import { LayoutDashboard, PieChart, FileText, Settings } from "lucide-react";
 
 const navItems = [
     {
@@ -34,12 +35,20 @@ export function Sidebar() {
     return (
         <aside className="flex w-64 flex-col bg-[#111a22] p-4 text-white h-screen fixed left-0 top-0 border-r border-slate-gray/50">
             <div className="flex-grow">
-                <div className="flex items-center gap-3 p-2 mb-8">
-                    <div className="w-10 h-10 flex items-center justify-center bg-gradient-to-br from-primary-start to-primary-end rounded-lg shadow-lg shadow-primary/20">
-                        <Box className="w-6 h-6 text-white" />
+                {/* Brand / Logo Section */}
+                <div className="flex items-center justify-center py-6 mb-2">
+                    <div className="relative w-48 h-20">
+                        <Image
+                            src="/logo.png"
+                            alt="QorSense Logo"
+                            fill
+                            className="object-contain"
+                            priority
+                        />
                     </div>
-                    <span className="text-xl font-bold text-white tracking-tight">Qorsense</span>
                 </div>
+
+                {/* Navigation */}
                 <nav className="flex flex-col gap-2">
                     {navItems.map((item) => {
                         const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
@@ -71,6 +80,8 @@ export function Sidebar() {
                     })}
                 </nav>
             </div>
+
+            {/* User Footer */}
             <div className="border-t border-slate-gray/50 pt-4 mt-4">
                 <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-gray/50 transition-colors cursor-pointer">
                     <div

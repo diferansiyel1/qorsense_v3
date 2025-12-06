@@ -2,22 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { SmartSensorCard } from "@/components/SmartSensorCard";
-import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, YAxis, CartesianGrid } from 'recharts';
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Activity, ShieldAlert, Microscope } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { api, Sensor } from "@/lib/api";
 import { AddSensorModal } from "@/components/AddSensorModal";
-
-// Mock data ONLY for the aggregate chart for now, as we don't have an aggregate endpoint
-const deviationData = [
-    { time: '00:00', value: 0.12 },
-    { time: '04:00', value: 0.15 },
-    { time: '08:00', value: 0.28 },
-    { time: '12:00', value: 0.45 },
-    { time: '16:00', value: 0.42 },
-    { time: '20:00', value: 0.38 },
-    { time: '24:00', value: 0.35 },
-];
 
 export default function Dashboard() {
     const [sensors, setSensors] = useState<any[]>([]); // Using any to mix Sensor + UI props
@@ -28,15 +17,35 @@ export default function Dashboard() {
         try {
             const data = await api.getSensors();
             // Map API data to UI compatible format
-            // Since we don't have health/status in Sensor model yet, we mock/defaults
-            const mapped = data.map(s => ({
-                id: s.id,
-                name: s.name,
-                location: s.location,
-                healthScore: s.health_score ?? 0,
-                status: s.status ?? 'Unknown',
-                type: s.source_type
-            }));
+            const mapped = data.map(s => {
+                // Color Logic / Status Derivation if missing
+                // Normalization Logic
+                let rawStatus = (s.latest_status || 'Unknown').trim().toUpperCase();
+                let finalStatus = 'Unknown';
+
+                // Map various inputs to standard Enum
+                if (['NORMAL', 'GREEN', 'GOOD', 'OK'].includes(rawStatus)) finalStatus = 'Normal';
+                else if (['WARNING', 'YELLOW', 'WARN'].includes(rawStatus)) finalStatus = 'Warning';
+                else if (['CRITICAL', 'RED', 'BAD', 'FAIL'].includes(rawStatus)) finalStatus = 'Critical';
+                else {
+                    // Fallback to score if status is unrecognized/Unknown
+                    const score = s.latest_health_score ?? 0;
+                    if (score > 80) finalStatus = 'Normal';
+                    else if (score >= 50) finalStatus = 'Warning';
+                    else finalStatus = 'Critical';
+                }
+
+                const score = s.latest_health_score ?? 0;
+
+                return {
+                    id: s.id,
+                    name: s.name,
+                    location: s.location,
+                    healthScore: score,
+                    status: finalStatus as 'Normal' | 'Warning' | 'Critical' | 'Unknown',
+                    type: s.source_type
+                };
+            });
             setSensors(mapped);
         } catch (err) {
             console.error(err);
@@ -130,47 +139,44 @@ export default function Dashboard() {
                     )}
                 </div>
 
-                {/* Global Deviation Chart */}
+                {/* System Health Overview Chart */}
                 <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
                     <div className="mb-6">
-                        <h3 className="text-lg font-semibold text-foreground">Signal Quality Drift</h3>
-                        <p className="text-sm text-muted-foreground">Aggregate noise levels across all analog inputs.</p>
+                        <h3 className="text-lg font-semibold text-foreground">Maintenance Priority: Lowest Health Sensors</h3>
+                        <p className="text-sm text-muted-foreground">Sensors requiring immediate attention based on analysis scores.</p>
                     </div>
                     <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={deviationData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorDeviation" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#00ADB5" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#00ADB5" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2D3748" />
-                                <XAxis
-                                    dataKey="time"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fill: '#94a3b8', fontSize: 12 }}
-                                    dy={10}
-                                />
+                            <BarChart
+                                data={[...sensors].sort((a, b) => (a.healthScore || 0) - (b.healthScore || 0)).slice(0, 10)}
+                                layout="vertical"
+                                margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#2D3748" />
+                                <XAxis type="number" domain={[0, 100]} hide />
                                 <YAxis
-                                    axisLine={false}
-                                    tickLine={false}
+                                    dataKey="name"
+                                    type="category"
+                                    width={100}
                                     tick={{ fill: '#94a3b8', fontSize: 12 }}
                                 />
                                 <Tooltip
+                                    cursor={{ fill: '#2D3748', opacity: 0.4 }}
                                     contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#fff' }}
-                                    itemStyle={{ color: '#00ADB5' }}
                                 />
-                                <Area
-                                    type="monotone"
-                                    dataKey="value"
-                                    stroke="#00ADB5"
-                                    strokeWidth={3}
-                                    fillOpacity={1}
-                                    fill="url(#colorDeviation)"
-                                />
-                            </AreaChart>
+                                <Bar dataKey="healthScore" radius={[0, 4, 4, 0]} barSize={20}>
+                                    {
+                                        [...sensors].sort((a, b) => (a.healthScore || 0) - (b.healthScore || 0)).slice(0, 10).map((entry, index) => {
+                                            const score = entry.healthScore || 0;
+                                            let fill = '#00C851'; // Normal
+                                            if (score < 50 || entry.status === 'Critical') fill = '#ff4444'; // Critical
+                                            else if (score < 80 || entry.status === 'Warning') fill = '#ffbb33'; // Warning
+
+                                            return <Cell key={`cell-${index}`} fill={fill} />;
+                                        })
+                                    }
+                                </Bar>
+                            </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>

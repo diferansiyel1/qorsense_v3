@@ -45,19 +45,19 @@ export function SmartSensorCard({ id, name, healthScore, status, problem }: Smar
                 statusBorder[status] || statusBorder.Unknown,
                 glow[status] || glow.Unknown
             )}>
-                <div className="p-5">
-                    <div className="flex justify-between items-start mb-4">
+                <div className="p-4">
+                    <div className="flex justify-between items-start mb-3">
                         <div>
-                            <h3 className="text-lg font-bold text-gray-100 group-hover:text-primary transition-colors">
+                            <h3 className="text-base font-bold text-gray-100 group-hover:text-primary transition-colors">
                                 {name}
                             </h3>
-                            <div className="flex items-center space-x-2 mb-6">
+                            <div className="flex items-center space-x-2 mb-4">
                                 <span className={cn("w-2 h-2 rounded-full",
                                     status === 'Normal' ? 'bg-status-green shadow-[0_0_8px_#00C851]' :
                                         status === 'Warning' ? 'bg-status-yellow shadow-[0_0_8px_#FFBB33]' :
                                             status === 'Critical' ? 'bg-status-red shadow-[0_0_8px_#FF4444]' : 'bg-muted-foreground'
                                 )}></span>
-                                <span className={cn("text-xs font-bold uppercase tracking-wider",
+                                <span className={cn("text-[10px] font-bold uppercase tracking-wider",
                                     status === 'Normal' ? 'text-status-green' :
                                         status === 'Warning' ? 'text-status-yellow' :
                                             status === 'Critical' ? 'text-status-red' : 'text-muted-foreground'
@@ -66,50 +66,50 @@ export function SmartSensorCard({ id, name, healthScore, status, problem }: Smar
                                 </span>
                             </div>
                         </div>
-                        <div className={cn("p-2.5 rounded-lg border backdrop-blur-sm",
+                        <div className={cn("p-2 rounded-lg border backdrop-blur-sm",
                             status === 'Normal' ? 'bg-status-green/10 border-status-green/20' :
                                 status === 'Warning' ? 'bg-status-yellow/10 border-status-yellow/20' :
                                     status === 'Critical' ? 'bg-status-red/10 border-status-red/20' :
                                         'bg-muted/10 border-muted'
                         )}>
                             {status === 'Normal' ? (
-                                <CheckCircle className="w-5 h-5 text-status-green" />
+                                <CheckCircle className="w-4 h-4 text-status-green" />
                             ) : status === 'Warning' ? (
-                                <AlertTriangle className="w-5 h-5 text-status-yellow" />
+                                <AlertTriangle className="w-4 h-4 text-status-yellow" />
                             ) : status === 'Critical' ? (
-                                <Activity className="w-5 h-5 text-status-red" />
+                                <Activity className="w-4 h-4 text-status-red" />
                             ) : (
-                                <Activity className="w-5 h-5 text-muted-foreground opacity-50" />
+                                <Activity className="w-4 h-4 text-muted-foreground opacity-50" />
                             )}
                         </div>
                     </div>
 
                     <div className="flex items-end justify-between">
                         <div>
-                            <p className="text-xs text-muted-foreground mb-1">Health Score</p>
+                            <p className="text-[10px] text-muted-foreground mb-1">Health Score</p>
                             <div className="flex items-baseline space-x-1">
-                                <span className={cn("text-5xl font-bold tracking-tighter tabular-nums",
+                                <span className={cn("text-4xl font-bold tracking-tighter tabular-nums",
                                     status === 'Normal' ? 'text-status-green' :
                                         status === 'Warning' ? 'text-status-yellow' :
                                             status === 'Critical' ? 'text-status-red' : 'text-muted-foreground'
                                 )}>
                                     {healthScore}
                                 </span>
-                                <span className="text-sm text-muted-foreground">/100</span>
+                                <span className="text-xs text-muted-foreground">/100</span>
                             </div>
                         </div>
 
                         {problem && (
-                            <div className={cn("absolute bottom-4 right-4 px-3 py-1.5 rounded-md border backdrop-blur-md",
+                            <div className={cn("absolute bottom-3 right-3 px-2.5 py-1 rounded-md border backdrop-blur-md",
                                 status === 'Critical' ? 'bg-status-red/10 border-status-red/30' :
                                     status === 'Warning' ? 'bg-status-yellow/10 border-status-yellow/30' :
                                         'bg-muted/10 border-muted'
                             )}>
-                                <p className={cn("text-xs font-bold uppercase tracking-tight flex items-center justify-end gap-1.5",
+                                <p className={cn("text-[10px] font-bold uppercase tracking-tight flex items-center justify-end gap-1.5",
                                     status === 'Critical' ? 'text-status-red' :
                                         status === 'Warning' ? 'text-status-yellow' : 'text-muted-foreground'
                                 )}>
-                                    <ArrowUpRight className="w-3.5 h-3.5" />
+                                    <ArrowUpRight className="w-3 h-3" />
                                     {problem}
                                 </p>
                             </div>
