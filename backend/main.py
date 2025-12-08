@@ -107,8 +107,9 @@ app.include_router(sensors.router)
 app.include_router(analytics.router)
 app.include_router(synthetic.router)
 app.include_router(reports.router)
-from backend.api.routes import monitoring
+from backend.api.routes import monitoring, tasks
 app.include_router(monitoring.router)
+app.include_router(tasks.router)
 
 # Metrics Middleware
 from backend.core.metrics import REQUEST_COUNT, REQUEST_LATENCY

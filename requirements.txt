@@ -39,3 +39,8 @@ email-validator==2.3.0
 
 # UI (for Streamlit if needed)
 streamlit==1.40.2
+
+# Task Queue (Celery + Redis)
+celery[redis]==5.4.0
+redis==5.2.1
+kombu==5.4.2

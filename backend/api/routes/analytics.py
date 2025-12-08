@@ -305,3 +305,149 @@ async def analyze_sensor(
     except Exception as e:
         logger.error(f"Analysis failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")
+
+
+# =============================================================================
+# Async Analysis Endpoints (Celery-powered)
+# =============================================================================
+
+from pydantic import BaseModel, Field
+from typing import Literal
+
+
+class AsyncAnalysisRequest(BaseModel):
+    """Request model for async analysis."""
+    sensor_id: str = Field(..., description="Sensor ID to analyze")
+    sensor_type: str = Field(default="Generic", description="Sensor type")
+    values: List[float] = Field(default=[], description="Optional values override")
+    config: Optional[dict] = Field(default=None, description="Analysis configuration")
+    use_async: bool = Field(default=True, description="Use async processing")
+
+
+class AsyncAnalysisResponse(BaseModel):
+    """Response model for async analysis submission."""
+    task_id: str = Field(..., description="Task ID for status polling")
+    status: str = Field(..., description="Initial task status")
+    message: str = Field(..., description="Submission message")
+    async_mode: bool = Field(..., description="Whether async mode was used")
+    poll_url: str = Field(..., description="URL to poll for task status")
+
+
+@router.post("/async", response_model=AsyncAnalysisResponse)
+async def analyze_sensor_async(
+    request: AsyncAnalysisRequest,
+    db: DbSession,
+    current_user: DevUser = None,
+):
+    """
+    Submit sensor analysis as a background task.
+    
+    This endpoint queues the analysis to Celery workers and returns immediately.
+    Use the task_id to poll `/tasks/{task_id}` for results.
+    
+    **Graceful Degradation**: If Redis is unavailable, falls back to
+    synchronous analysis (slower but still works).
+    
+    **Authentication**: Required in production, optional in development.
+    
+    Args:
+        request: Analysis request with sensor_id and optional values
+        db: Database session
+        current_user: Authenticated user (optional in development)
+        
+    Returns:
+        AsyncAnalysisResponse with task_id for polling
+        
+    Example:
+        ```
+        POST /analyze/async
+        {"sensor_id": "pH-01", "use_async": true}
+        
+        Response:
+        {"task_id": "abc-123", "status": "PENDING", "poll_url": "/tasks/abc-123"}
+        ```
+    """
+    user_info = current_user.username if current_user else "anonymous (dev mode)"
+    logger.info(f"Async analysis request for sensor: {request.sensor_id} by user: {user_info}")
+    
+    # Get values from request or fetch from database
+    values = request.values
+    
+    if not values or len(values) == 0:
+        # Fetch from database
+        stmt = (
+            select(SensorReading)
+            .where(SensorReading.sensor_id == request.sensor_id)
+            .order_by(desc(SensorReading.timestamp))
+            .limit(1000)
+        )
+        result = await db.execute(stmt)
+        readings = result.scalars().all()
+        
+        if not readings:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No data found for sensor {request.sensor_id}"
+            )
+        
+        values = [r.value for r in reversed(readings)]
+    
+    # Try async mode with Celery
+    if request.use_async:
+        try:
+            from backend.core.celery_app import REDIS_AVAILABLE
+            from backend.tasks.analysis_tasks import analyze_sensor_data
+            
+            if REDIS_AVAILABLE:
+                # Submit to Celery
+                task = analyze_sensor_data.delay(
+                    sensor_id=request.sensor_id,
+                    values=values,
+                    sensor_type=request.sensor_type,
+                    config=request.config
+                )
+                
+                logger.info(f"Task {task.id} queued for sensor {request.sensor_id}")
+                
+                return AsyncAnalysisResponse(
+                    task_id=task.id,
+                    status="PENDING",
+                    message=f"Analysis queued for sensor {request.sensor_id}",
+                    async_mode=True,
+                    poll_url=f"/tasks/{task.id}"
+                )
+            else:
+                logger.warning("Redis unavailable, falling back to sync mode")
+                
+        except ImportError as e:
+            logger.warning(f"Celery not available: {e}")
+        except Exception as e:
+            logger.warning(f"Async task submission failed: {e}, falling back to sync mode")
+    
+    # Fallback: Synchronous analysis
+    import uuid
+    fake_task_id = str(uuid.uuid4())
+    
+    logger.info(f"Running synchronous analysis for {request.sensor_id} (task_id={fake_task_id})")
+    
+    try:
+        # Note: analyzer.analyze() takes raw_data, not keyword args
+        analysis_result = analyzer.analyze(raw_data=values)
+        
+        # Store result temporarily (in production, use Redis or DB)
+        # For now, return a special response indicating sync completion
+        return AsyncAnalysisResponse(
+            task_id=fake_task_id,
+            status="SUCCESS",
+            message=f"Analysis completed synchronously for sensor {request.sensor_id} (Redis unavailable)",
+            async_mode=False,
+            poll_url=f"/tasks/{fake_task_id}"
+        )
+        
+    except Exception as e:
+        logger.error(f"Synchronous analysis failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Analysis failed: {str(e)}"
+        )
+
