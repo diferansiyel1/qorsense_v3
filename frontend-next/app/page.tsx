@@ -15,10 +15,10 @@ export default function Dashboard() {
     const fetchSensors = async () => {
         setLoading(true);
         try {
-            const data = await api.getSensors();
-            // Map API data to UI compatible format
-            const mapped = data.map(s => {
-                // Color Logic / Status Derivation if missing
+            const response = await api.getSensors();
+            const sensorsData = (response as any).items ? (response as any).items : response;
+
+            const mapped = Array.isArray(sensorsData) ? sensorsData.map((s: any) => {
                 // Normalization Logic
                 let rawStatus = (s.latest_status || 'Unknown').trim().toUpperCase();
                 let finalStatus = 'Unknown';
@@ -45,7 +45,7 @@ export default function Dashboard() {
                     status: finalStatus as 'Normal' | 'Warning' | 'Critical' | 'Unknown',
                     type: s.source_type
                 };
-            });
+            }) : [];
             setSensors(mapped);
         } catch (err) {
             console.error(err);

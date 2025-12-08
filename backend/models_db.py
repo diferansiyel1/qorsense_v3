@@ -9,6 +9,7 @@ from datetime import datetime
 class SourceType(str, enum.Enum):
     CSV = "CSV"
     SCADA = "SCADA"
+    IoT = "IoT"
 
 # Models
 

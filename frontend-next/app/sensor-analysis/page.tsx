@@ -62,10 +62,12 @@ export default function SensorAnalysisCockpit() {
     useEffect(() => {
         const fetchSensors = async () => {
             try {
-                const data = await api.getSensors();
-                setSensors(data);
-                if (data.length > 0) {
-                    setSelectedSensorId(data[0].id);
+                const response = await api.getSensors();
+                const sensorsData = (response as any).items ? (response as any).items : response;
+
+                setSensors(sensorsData);
+                if (sensorsData.length > 0) {
+                    setSelectedSensorId(sensorsData[0].id);
                 }
             } catch (err) {
                 console.error("Failed to fetch sensors", err);

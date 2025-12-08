@@ -1,0 +1,29 @@
+# Development Dependencies
+# Testing, linting, type checking, and security audit tools
+
+-r requirements.txt
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+pytest-mock==3.14.0
+
+# HTTP Testing
+httpx==0.28.1
+
+# Code Quality
+ruff==0.8.4
+mypy==1.13.0
+black==24.10.0
+
+# Type Stubs
+types-requests==2.32.0.20241016
+
+# Security
+pip-audit==2.7.3
+bandit==1.8.0
+
+# Development Tools
+ipython==8.31.0
+pip-tools==7.4.1

@@ -110,6 +110,25 @@ This will:
 
 ---
 
+## 🐳 Docker Deployment (Production)
+
+For production environments, use the optimized Docker setup:
+
+```bash
+# Build and start services (Backend, Frontend, Redis)
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+
+This setup includes:
+- **FastAPI Backend** (Optimized Python 3.11 slim image)
+- **Next.js Frontend** (Standalone output, Node 20 Alpine)
+- **Redis** (Caching layer)
+- Health checks and automatic restarts
+
+Access the application at `http://localhost:3000`.
+
+---
+ 
 ## 🧪 Testing
 
 Run the backend unit tests to verify the analysis engine:
