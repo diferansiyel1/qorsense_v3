@@ -1,55 +1,42 @@
-export interface SensorConfig {
-    slope_critical: number;
-    slope_warning: number;
-    bias_critical: number;
-    bias_warning: number;
-    noise_critical: number;
-    hysteresis_critical: number;
-    dfa_critical: number;
-    min_data_points: number;
-}
+/**
+ * Types Package Index
+ * 
+ * Central export for all TypeScript type definitions.
+ */
 
-export interface SensorDataInput {
-    sensor_id: string;
-    sensor_type: string;
-    values: number[];
-    timestamps?: string[];
-    config?: SensorConfig;
-}
+// API Types
+export * from './api';
 
-export interface AnalysisMetrics {
-    bias: number;
-    slope: number;
-    noise_std: number;
-    snr_db: number;
-    hysteresis: number;
-    hysteresis_x?: number[];
-    hysteresis_y?: number[];
-    hurst: number;
-    hurst_r2: number;
-    dfa_scales?: number[];
-    dfa_fluctuations?: number[];
-    complexity?: number;
-    prediction_error?: number;
-}
+// Re-export commonly used types for convenience
+export type {
+    // Auth
+    User,
+    LoginRequest,
+    TokenResponse,
+    RegisterRequest,
+    UpdateProfileRequest,
 
-export interface AnalysisResult {
-    sensor_id: string;
-    timestamp: string;
-    health_score: number;
-    status: "Green" | "Yellow" | "Red";
-    diagnosis: string;
-    metrics: AnalysisMetrics;
-    flags: string[];
-    recommendation: string;
-    prediction?: string;
-}
+    // Sensor
+    Sensor,
+    SensorReading,
+    SensorHistory,
+    CreateSensorRequest,
 
-export interface SyntheticRequest {
-    type: "Normal" | "Drifting" | "Noisy" | "Oscillation";
-    length: number;
-}
+    // Analysis
+    AnalysisResult,
+    AnalysisMetrics,
+    AnalysisRequest,
+    AsyncAnalysisRequest,
+    AsyncAnalysisResponse,
+    RulPrediction,
 
-export interface SyntheticResponse {
-    data: number[];
-}
+    // Task
+    TaskStatusResponse,
+
+    // Common
+    ApiError,
+    HttpError,
+    PaginatedResponse,
+    PaginationParams,
+    CSVImportResult,
+} from './api';

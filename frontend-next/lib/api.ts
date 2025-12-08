@@ -1,122 +1,187 @@
 /**
- * QorSense API Client
+ * QorSense API Service
  * 
- * Centralized API configuration with environment-based URL,
- * request/response interceptors, and error handling.
+ * Type-safe API methods using the configured axios client.
+ * All methods are fully typed with request/response interfaces.
+ * 
+ * @module lib/api
  */
 
-import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+'use client';
 
-// API Base URL from environment or fallback to localhost
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { apiClient, tokenStorage, API_BASE_URL } from './api-client';
+import type {
+    // Auth
+    User,
+    LoginRequest,
+    TokenResponse,
+    RegisterRequest,
+    UpdateProfileRequest,
+    // Sensor
+    Sensor,
+    CreateSensorRequest,
+    SensorHistory,
+    // Analysis
+    AnalysisResult,
+    AnalysisRequest,
+    AsyncAnalysisRequest,
+    AsyncAnalysisResponse,
+    // Task
+    TaskStatusResponse,
+    // Common
+    PaginatedResponse,
+    CSVImportResult,
+    SyntheticDataRequest,
+    SyntheticDataResponse,
+    HealthResponse,
+} from '@/types/api';
 
-// Create axios instance with default config
-const apiClient = axios.create({
-    baseURL: API_BASE_URL,
-    timeout: 30000, // 30 second timeout
-    headers: {
-        'Content-Type': 'application/json',
-    },
-});
+// ============================================================================
+// Authentication API
+// ============================================================================
 
-// Request interceptor - add auth token if available
-apiClient.interceptors.request.use(
-    (config) => {
-        // Future: Add JWT token from localStorage/sessionStorage
-        // const token = localStorage.getItem('access_token');
-        // if (token) {
-        //   config.headers.Authorization = `Bearer ${token}`;
-        // }
+export const authApi = {
+    /**
+     * Login with username and password.
+     * Stores tokens automatically on success.
+     */
+    async login(credentials: LoginRequest): Promise<TokenResponse> {
+        // OAuth2 expects form data, not JSON
+        const formData = new URLSearchParams();
+        formData.append('username', credentials.username);
+        formData.append('password', credentials.password);
 
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
-    }
-);
+        const response = await apiClient.post<TokenResponse>('/auth/login', formData, {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
 
-// Response interceptor - handle errors globally
-apiClient.interceptors.response.use(
-    (response) => {
-        return response;
-    },
-    (error: AxiosError) => {
-        // Handle specific error codes
-        if (error.response) {
-            // Server responded with error status
-            switch (error.response.status) {
-                case 401:
-                    // Unauthorized - redirect to login (future)
-                    console.error('Unauthorized access');
-                    break;
-                case 403:
-                    // Forbidden
-                    console.error('Access forbidden');
-                    break;
-                case 404:
-                    console.error('Resource not found');
-                    break;
-                case 500:
-                    console.error('Internal server error');
-                    break;
-                default:
-                    console.error(`API Error: ${error.response.status}`);
-            }
-        } else if (error.request) {
-            // Request made but no response received
-            console.error('No response from server - check if backend is running');
-        } else {
-            // Error in request configuration
-            console.error('Request configuration error:', error.message);
-        }
+        // Store tokens
+        tokenStorage.setTokens(response.data);
 
-        return Promise.reject(error);
-    }
-);
-
-// ========================================
-// Backward Compatibility API
-// ========================================
-// Export old-style API for existing components
-export const api = {
-    healthCheck: async () => {
-        try {
-            const res = await apiClient.get('/');
-            return res.status === 200;
-        } catch (error) {
-            return false;
-        }
+        return response.data;
     },
 
-    getSensors: async (): Promise<Sensor[]> => {
-        const res = await apiClient.get('/sensors');
-        // Backend returns PaginatedResponse: { items: [...], total, page, size, pages }
-        // Extract items array for backward compatibility with existing components
-        if (res.data && Array.isArray(res.data.items)) {
-            return res.data.items;
-        }
-        // Fallback: if response is already an array (legacy support)
-        if (Array.isArray(res.data)) {
-            return res.data;
-        }
-        // Default to empty array if unexpected format
-        console.warn('Unexpected sensors response format:', res.data);
-        return [];
+    /**
+     * Register a new user.
+     */
+    async register(data: RegisterRequest): Promise<User> {
+        const response = await apiClient.post<User>('/auth/register', data);
+        return response.data;
     },
 
-    createSensor: async (data: CreateSensorData) => {
-        const res = await apiClient.post('/sensors', data);
-        return res.data;
+    /**
+     * Refresh access token.
+     */
+    async refreshToken(refreshToken: string): Promise<TokenResponse> {
+        const response = await apiClient.post<TokenResponse>('/auth/refresh', {
+            refresh_token: refreshToken,
+        });
+
+        tokenStorage.setTokens(response.data);
+        return response.data;
     },
 
-    uploadReadings: async (sensorId: string, formData: FormData) => {
-        // Note: sensor_id is already in FormData from the modal component
-        // CRITICAL: For FormData uploads, we must NOT set Content-Type header.
-        // Using a fresh axios instance without the default Content-Type header.
-        const response = await fetch(`${apiClient.defaults.baseURL}/sensors/upload-csv`, {
+    /**
+     * Get current user profile.
+     */
+    async getMe(): Promise<User> {
+        const response = await apiClient.get<User>('/auth/me');
+        return response.data;
+    },
+
+    /**
+     * Update current user profile.
+     */
+    async updateProfile(data: UpdateProfileRequest): Promise<User> {
+        const response = await apiClient.put<User>('/auth/me', data);
+        return response.data;
+    },
+
+    /**
+     * Logout (clear tokens).
+     */
+    logout(): void {
+        tokenStorage.clearTokens();
+        // Optional: Call backend logout endpoint
+        apiClient.post('/auth/logout').catch(() => {
+            // Ignore errors on logout
+        });
+    },
+
+    /**
+     * Check if user is currently authenticated.
+     */
+    isAuthenticated(): boolean {
+        return tokenStorage.isAuthenticated();
+    },
+};
+
+// ============================================================================
+// Sensors API
+// ============================================================================
+
+export const sensorsApi = {
+    /**
+     * Get all sensors with pagination.
+     */
+    async getAll(page = 1, size = 20): Promise<Sensor[]> {
+        const response = await apiClient.get<PaginatedResponse<Sensor>>('/sensors', {
+            params: { page, size },
+        });
+        return response.data.items;
+    },
+
+    /**
+     * Get paginated sensors response.
+     */
+    async getPaginated(page = 1, size = 20): Promise<PaginatedResponse<Sensor>> {
+        const response = await apiClient.get<PaginatedResponse<Sensor>>('/sensors', {
+            params: { page, size },
+        });
+        return response.data;
+    },
+
+    /**
+     * Get a single sensor by ID.
+     */
+    async getById(id: string): Promise<Sensor> {
+        const response = await apiClient.get<Sensor>(`/sensors/${id}`);
+        return response.data;
+    },
+
+    /**
+     * Create a new sensor.
+     */
+    async create(data: CreateSensorRequest): Promise<Sensor> {
+        const response = await apiClient.post<Sensor>('/sensors', data);
+        return response.data;
+    },
+
+    /**
+     * Get sensor reading history.
+     */
+    async getHistory(sensorId: string, limit = 1000): Promise<SensorHistory> {
+        const response = await apiClient.get<SensorHistory>(`/sensors/${sensorId}/history`, {
+            params: { limit },
+        });
+        return response.data;
+    },
+
+    /**
+     * Upload CSV readings for a sensor.
+     * Uses native fetch for proper FormData handling.
+     */
+    async uploadCsv(sensorId: string, file: File): Promise<CSVImportResult> {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('sensor_id', sensorId);
+
+        const token = tokenStorage.getAccessToken();
+
+        const response = await fetch(`${API_BASE_URL}/sensors/upload-csv`, {
             method: 'POST',
             body: formData,
-            // Don't set Content-Type - browser will set it with correct boundary
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
 
         if (!response.ok) {
@@ -126,63 +191,246 @@ export const api = {
 
         return response.json();
     },
-
-    analyzeSensor: async (sensorId: string, config?: any) => {
-        const payload = {
-            sensor_id: sensorId,
-            sensor_type: "Bio",
-            values: [],
-            config: config
-        };
-        const res = await apiClient.post('/analyze', payload);
-        return res.data;
-    },
-
-    getSensorHistory: async (sensorId: string) => {
-        const res = await apiClient.get(`/sensors/${sensorId}/history`);
-        return res.data;
-    },
-
-    generateSynthetic: async (req: any) => {
-        const res = await apiClient.post('/synthetic/generate', req);
-        return res.data.data;
-    },
-
-    generateReport: async (result: any, rawData: number[]) => {
-        const payload = { ...result, data: rawData };
-        const res = await apiClient.post('/reports/generate', payload, {
-            responseType: 'blob',
-        });
-        return res.data;
-    }
 };
 
-// ========================================
-// Type Definitions (Backward Compatibility)
-// ========================================
-export type SourceType = 'CSV' | 'SCADA' | 'IoT';
-export type SensorStatus = 'Normal' | 'Warning' | 'Critical' | 'Unknown';
+// ============================================================================
+// Analysis API
+// ============================================================================
 
-export interface Sensor {
-    id: string;
-    name: string;
-    location: string;
-    source_type: SourceType;
-    organization_id?: number;
-    latest_health_score?: number;
-    latest_status?: SensorStatus;
-    latest_analysis_timestamp?: string;
-}
+export const analysisApi = {
+    /**
+     * Run synchronous analysis on a sensor.
+     */
+    async analyze(request: AnalysisRequest): Promise<AnalysisResult> {
+        const response = await apiClient.post<AnalysisResult>('/analyze', {
+            sensor_id: request.sensor_id,
+            sensor_type: request.sensor_type || 'Generic',
+            values: request.values || [],
+            config: request.config,
+        });
+        return response.data;
+    },
 
-export interface CreateSensorData {
-    name: string;
-    location: string;
-    source_type: SourceType;
-    organization_id?: number;
-}
+    /**
+     * Submit async analysis task.
+     */
+    async analyzeAsync(request: AsyncAnalysisRequest): Promise<AsyncAnalysisResponse> {
+        const response = await apiClient.post<AsyncAnalysisResponse>('/analyze/async', request);
+        return response.data;
+    },
+};
 
-// Export configured axios instance as default
-export default apiClient;
+// ============================================================================
+// Tasks API
+// ============================================================================
 
-// Export base URL for direct use
-export { API_BASE_URL };
+export const tasksApi = {
+    /**
+     * Get task status by ID.
+     */
+    async getStatus(taskId: string): Promise<TaskStatusResponse> {
+        const response = await apiClient.get<TaskStatusResponse>(`/tasks/${taskId}`);
+        return response.data;
+    },
+
+    /**
+     * Revoke a pending task.
+     */
+    async revoke(taskId: string, terminate = false): Promise<void> {
+        await apiClient.delete(`/tasks/${taskId}`, {
+            params: { terminate },
+        });
+    },
+
+    /**
+     * Poll task until completion.
+     * Returns result or throws on failure.
+     */
+    async pollUntilComplete(
+        taskId: string,
+        options: { intervalMs?: number; maxAttempts?: number } = {}
+    ): Promise<AnalysisResult> {
+        const { intervalMs = 1000, maxAttempts = 60 } = options;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            const status = await this.getStatus(taskId);
+
+            if (status.status === 'SUCCESS' && status.result) {
+                return status.result;
+            }
+
+            if (status.status === 'FAILURE') {
+                throw new Error(status.error || 'Task failed');
+            }
+
+            if (['PENDING', 'STARTED', 'PROGRESS', 'RETRY'].includes(status.status)) {
+                await new Promise((resolve) => setTimeout(resolve, intervalMs));
+                continue;
+            }
+
+            throw new Error(`Unexpected task status: ${status.status}`);
+        }
+
+        throw new Error('Task polling timeout');
+    },
+};
+
+// ============================================================================
+// Reports API
+// ============================================================================
+
+export const reportsApi = {
+    /**
+     * Generate PDF report.
+     * Returns blob for download.
+     */
+    async generatePdf(result: AnalysisResult, rawData: number[]): Promise<Blob> {
+        const response = await apiClient.post(
+            '/reports/generate',
+            {
+                sensor_id: result.sensor_id,
+                health_score: result.health_score,
+                diagnosis: result.diagnosis,
+                metrics: result.metrics,
+                flags: result.flags,
+                recommendation: result.recommendation,
+                data: rawData,
+            },
+            { responseType: 'blob' }
+        );
+        return response.data;
+    },
+
+    /**
+     * Download PDF report with auto-save.
+     */
+    async downloadPdf(result: AnalysisResult, rawData: number[]): Promise<void> {
+        const blob = await this.generatePdf(result, rawData);
+
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `report_${result.sensor_id}_${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    },
+};
+
+// ============================================================================
+// Synthetic Data API
+// ============================================================================
+
+export const syntheticApi = {
+    /**
+     * Generate synthetic sensor data.
+     */
+    async generate(request: SyntheticDataRequest = {}): Promise<number[]> {
+        const response = await apiClient.post<SyntheticDataResponse>('/synthetic/generate', {
+            n_points: request.n_points || 1000,
+            pattern_type: request.pattern_type || 'stable',
+            noise_level: request.noise_level || 0.1,
+            trend_strength: request.trend_strength || 0.0,
+            seed: request.seed,
+        });
+        return response.data.data;
+    },
+};
+
+// ============================================================================
+// Health API
+// ============================================================================
+
+export const healthApi = {
+    /**
+     * Check API health status.
+     */
+    async check(): Promise<HealthResponse> {
+        const response = await apiClient.get<HealthResponse>('/health');
+        return response.data;
+    },
+
+    /**
+     * Simple ping check.
+     */
+    async ping(): Promise<boolean> {
+        try {
+            await apiClient.get('/');
+            return true;
+        } catch {
+            return false;
+        }
+    },
+};
+
+// ============================================================================
+// Unified API Export
+// ============================================================================
+
+/**
+ * Unified API object for convenient access to all endpoints.
+ * Includes legacy method aliases for backward compatibility.
+ */
+export const api = {
+    auth: authApi,
+    sensors: sensorsApi,
+    analysis: analysisApi,
+    tasks: tasksApi,
+    reports: reportsApi,
+    synthetic: syntheticApi,
+    health: healthApi,
+
+    // =========================================================================
+    // Legacy Methods (for backward compatibility with existing components)
+    // =========================================================================
+
+    /** @deprecated Use api.health.ping() */
+    healthCheck: async () => healthApi.ping(),
+
+    /** @deprecated Use api.sensors.getAll() */
+    getSensors: async () => sensorsApi.getAll(),
+
+    /** @deprecated Use api.sensors.create() */
+    createSensor: async (data: CreateSensorRequest) => sensorsApi.create(data),
+
+    /** @deprecated Use api.sensors.uploadCsv() */
+    uploadReadings: async (sensorId: string, formData: FormData) => {
+        const file = formData.get('file') as File;
+        return sensorsApi.uploadCsv(sensorId, file);
+    },
+
+    /** @deprecated Use api.analysis.analyze() */
+    analyzeSensor: async (sensorId: string, config?: { start_date?: string; end_date?: string }) => {
+        return analysisApi.analyze({
+            sensor_id: sensorId,
+            sensor_type: 'Bio',
+            values: [],
+            config,
+        });
+    },
+
+    /** @deprecated Use api.sensors.getHistory() */
+    getSensorHistory: async (sensorId: string) => sensorsApi.getHistory(sensorId),
+
+    /** @deprecated Use api.synthetic.generate() */
+    generateSynthetic: async (req: SyntheticDataRequest) => syntheticApi.generate(req),
+
+    /** @deprecated Use api.reports.generatePdf() */
+    generateReport: async (result: AnalysisResult, rawData: number[]) => {
+        return reportsApi.generatePdf(result, rawData);
+    },
+};
+
+// Re-export client and storage for advanced use cases
+export { apiClient, tokenStorage, API_BASE_URL };
+
+// ============================================================================
+// Type Re-exports for Backward Compatibility
+// ============================================================================
+
+// Re-export Sensor type for components importing from @/lib/api
+export type { Sensor, CreateSensorRequest as CreateSensorData } from '@/types/api';
+
+// Default export
+export default api;
