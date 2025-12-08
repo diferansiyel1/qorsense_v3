@@ -2,16 +2,19 @@
 Analytics Routes
 
 Handles sensor data analysis endpoints and background analysis tasks.
+Protected with JWT authentication - requires valid access token.
 """
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from backend.database import get_db
-from backend.models_db import SensorReading, AnalysisResultDB
+from backend.models_db import SensorReading, AnalysisResultDB, User
 from backend.models import SensorDataInput, AnalysisResult, AnalysisMetrics
 from backend.analysis import SensorAnalyzer
 from backend.core.config import settings
+from backend.api.deps import DevUser, DbSession
+from typing import Optional
 from datetime import datetime, timedelta
 import numpy as np
 import logging
@@ -140,9 +143,15 @@ async def run_background_analysis(sensor_id: str, db_session_factory):
 
 
 @router.post("", response_model=AnalysisResultExtended)
-async def analyze_sensor(data: SensorDataInput, db: AsyncSession = Depends(get_db)):
+async def analyze_sensor(
+    data: SensorDataInput,
+    db: DbSession,
+    current_user: DevUser = None,
+):
     """
     Analyze sensor data.
+    
+    **Authentication**: Required in production, optional in development.
     
     Supports two modes:
     1. Ad-hoc analysis: Provide values directly in the request
@@ -151,11 +160,13 @@ async def analyze_sensor(data: SensorDataInput, db: AsyncSession = Depends(get_d
     Args:
         data: Sensor data input (values or sensor_id with config)
         db: Database session
+        current_user: Authenticated user (optional in development)
         
     Returns:
         AnalysisResultExtended: Analysis result with metrics
     """
-    logger.info(f"Analysis request for sensor: {data.sensor_id}")
+    user_info = current_user.username if current_user else "anonymous (dev mode)"
+    logger.info(f"Analysis request for sensor: {data.sensor_id} by user: {user_info}")
     
     values = data.values
     timestamps_iso = []

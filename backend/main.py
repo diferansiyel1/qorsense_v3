@@ -19,7 +19,7 @@ from backend.core.config import settings
 from backend.database import engine, Base
 
 # Router imports
-from backend.api.routes import health, sensors, analytics, synthetic, reports
+from backend.api.routes import health, sensors, analytics, synthetic, reports, auth
 
 
 # ========================================
@@ -81,12 +81,15 @@ app = FastAPI(
 # ========================================
 # Middleware Configuration
 # ========================================
+# Production-safe CORS: Only explicitly allowed origins and methods
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=settings.cors_origins_list,  # From .env CORS_ORIGINS
     allow_credentials=settings.cors_allow_credentials,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
+    expose_headers=["X-Request-ID"],
+    max_age=600,  # Cache preflight for 10 minutes
 )
 
 
@@ -96,7 +99,10 @@ app.add_middleware(
 # Health check routes (no prefix)
 app.include_router(health.router)
 
-# API routes
+# Authentication routes
+app.include_router(auth.router)
+
+# API routes (protected endpoints)
 app.include_router(sensors.router)
 app.include_router(analytics.router)
 app.include_router(synthetic.router)

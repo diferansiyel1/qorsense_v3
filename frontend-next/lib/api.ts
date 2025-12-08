@@ -88,14 +88,20 @@ export const api = {
         }
     },
 
-    getSensors: async () => {
+    getSensors: async (): Promise<Sensor[]> => {
         const res = await apiClient.get('/sensors');
-        // Handle PaginatedResponse: return items to maintain basic compatibility where possible
-        // But ideally components should handle the full object. 
-        // For now, let's unpack 'items' to fix the immediate breakage in Dashboard, 
-        // OR return the full object and update Dashboard.
-        // Let's update Dashboard.
-        return res.data;
+        // Backend returns PaginatedResponse: { items: [...], total, page, size, pages }
+        // Extract items array for backward compatibility with existing components
+        if (res.data && Array.isArray(res.data.items)) {
+            return res.data.items;
+        }
+        // Fallback: if response is already an array (legacy support)
+        if (Array.isArray(res.data)) {
+            return res.data;
+        }
+        // Default to empty array if unexpected format
+        console.warn('Unexpected sensors response format:', res.data);
+        return [];
     },
 
     createSensor: async (data: CreateSensorData) => {
@@ -105,14 +111,20 @@ export const api = {
 
     uploadReadings: async (sensorId: string, formData: FormData) => {
         // Note: sensor_id is already in FormData from the modal component
-        // Important: Do NOT set Content-Type header manually for FormData, 
-        // let the browser set it with the correct boundary.
-        const res = await apiClient.post('/sensors/upload-csv', formData, {
-            headers: {
-                'Content-Type': undefined,
-            } as any // Cast to any to avoid type error with undefined header
+        // CRITICAL: For FormData uploads, we must NOT set Content-Type header.
+        // Using a fresh axios instance without the default Content-Type header.
+        const response = await fetch(`${apiClient.defaults.baseURL}/sensors/upload-csv`, {
+            method: 'POST',
+            body: formData,
+            // Don't set Content-Type - browser will set it with correct boundary
         });
-        return res.data;
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+            throw new Error(error.detail || `Upload failed with status ${response.status}`);
+        }
+
+        return response.json();
     },
 
     analyzeSensor: async (sensorId: string, config?: any) => {

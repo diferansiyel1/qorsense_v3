@@ -2,11 +2,13 @@
 Report Generation Routes
 
 Handles PDF report generation for analysis results.
+Protected with JWT authentication - requires valid access token in production.
 """
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from backend.models import ReportRequest
+from backend.api.deps import DevUser
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,12 +17,18 @@ router = APIRouter(prefix="/reports", tags=["Reports"])
 
 
 @router.post("/generate")
-async def generate_report(request: ReportRequest):
+async def generate_report(
+    request: ReportRequest,
+    current_user: DevUser = None,
+):
     """
     Generate a PDF report for sensor analysis.
     
+    **Authentication**: Required in production, optional in development.
+    
     Args:
         request: Report generation parameters including metrics and diagnosis
+        current_user: Authenticated user (optional in development)
         
     Returns:
         FileResponse: PDF file download
@@ -45,7 +53,8 @@ async def generate_report(request: ReportRequest):
             health_score=request.health_score
         )
         
-        logger.info(f"Generated report for sensor {request.sensor_id}")
+        user_info = current_user.username if current_user else "anonymous (dev mode)"
+        logger.info(f"Generated report for sensor {request.sensor_id} by user: {user_info}")
         return FileResponse(
             pdf_path,
             media_type='application/pdf',
@@ -54,3 +63,4 @@ async def generate_report(request: ReportRequest):
     except Exception as e:
         logger.error(f"Report generation error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
+
