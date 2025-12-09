@@ -41,15 +41,21 @@ class SensorDataInput(BaseModel):
 class AnalysisMetrics(BaseModel):
     bias: float
     slope: float
-    noise_std: float
     snr_db: float
     hysteresis: float
+    # Optional fields with defaults for backward compatibility
+    noise_std: Optional[float] = 0.0
     hysteresis_x: List[float] = []
     hysteresis_y: List[float] = []
-    hurst: float
-    hurst_r2: float
+    hurst: Optional[float] = 0.5
+    hurst_r2: Optional[float] = 0.0
+    dfa_alpha: Optional[float] = None
+    dfa_r_squared: Optional[float] = None
     dfa_scales: List[float] = []
     dfa_fluctuations: List[float] = []
+    timestamps: Optional[List[str]] = None
+    trend: Optional[List[float]] = None
+    residuals: Optional[List[float]] = None
 
 class AnalysisResult(BaseModel):
     sensor_id: str
@@ -69,9 +75,10 @@ class SyntheticRequest(BaseModel):
 class ReportRequest(BaseModel):
     sensor_id: str
     health_score: float
-    status: str
     metrics: AnalysisMetrics
     diagnosis: str
+    # Optional fields with defaults
+    status: Optional[str] = "Unknown"
     flags: List[str] = []
     recommendation: str = ""
     data: Optional[List[float]] = None
